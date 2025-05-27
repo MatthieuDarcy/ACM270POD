@@ -1,4 +1,4 @@
-        
+#%%
 #!/usr/bin/env python3
 """
 advection_fd.py
@@ -80,7 +80,7 @@ def rhs(t, u):
 # Integration times (uniform for plotting convenience)
 steps = 100#int(np.ceil(t_end / dt))
 t_eval = np.linspace(0.0, t_end, steps + 1)
-
+#%%
 # ---------------------------------------------------------------------
 # Integrate with solve_ivp
 # ---------------------------------------------------------------------
@@ -120,7 +120,7 @@ print(f"Relative L2 error at t = {t_end:.2f}  →  {rel_err:.3e}")
 from utils import compute_pod_basis, solve_pod_system
 
 # Get the V matrix via SVD
-rank = 5
+rank = 10
 V, s = compute_pod_basis(u_num, rank= rank)
 
 #%%
@@ -139,20 +139,72 @@ sol_pod, sol_recon = solve_pod_system(A, V, u0, t_span = (0.0, t_end),t_eval=t_e
                      method="RK45", rtol=1e-8, atol=1e-10)
 
 
+
+rel_err_pod = np.linalg.norm(u_num[:, -1] - sol_recon[:, -1]) / np.linalg.norm(u_num[:, -1])
+print(f"Relative L2 error at t = {t_end:.2f}  →  {rel_err_pod:.3e}")
+
+
 #%%
 # Plot comparison
 plt.figure()
 plt.plot(x,u0, "--", label = "initial condition")
-plt.plot(x, u_num[:, -1], label="solve_ivp (RK45)")
-plt.plot(x, sol_recon[:, -1], label=f"POD solution, rank {rank}")
+plt.plot(x, u_exact_final, '--', label="Exact solution")
+plt.plot(x, u_num[:, -1], label=f"solve_ivp (RK45), {rel_err:.2e}")
+plt.plot(x, sol_recon[:, -1], label=f"POD solution ({rank}), {rel_err_pod:.2e}")
 plt.xlabel("x"); plt.ylabel("u")
-plt.title("Heat equation: solve_ivp vs exact")
+plt.title(f"Advection equation on the training data")
 plt.legend(); plt.tight_layout()
 #plt.show()
 
+
+
+#%% new initial condition
+def initial_condition(x):
+    """Example IC: sharp Gaussian pulse + smooth sine."""
+    return np.sin(2 * np.pi * x) + np.exp(-300*(x-0.25)**2)
+
+u0 = initial_condition(x)               # shape (nx, len(t_eval))
+t_end    = 0.25
+steps = 100#int(np.ceil(t_end / dt))
+t_eval = np.linspace(0.0, t_end, steps + 1)
+
+#%%
+sol = integrate.solve_ivp(rhs, (0.0, t_end), u0,
+                          t_eval=t_eval, method=method,
+                          rtol=rtol, atol=atol)
+u_num = sol.y  
+u_exact_final = initial_condition((x - c * t_end))
+
 #%%
 
-rel_err = np.linalg.norm(u_num[:, -1] - sol_recon[:, -1]) / np.linalg.norm(u_num[:, -1])
+sol_pod, sol_recon = solve_pod_system(A, V, u0, t_span = (0.0, t_end),t_eval=t_eval,
+                     method="RK45", rtol=1e-8, atol=1e-10)
+
+small_rank = 3
+sol_pod_small, sol_recon_small = solve_pod_system(A, V[:,:small_rank], u0, t_span = (0.0, t_end),t_eval=t_eval,
+                     method="RK45", rtol=1e-8, atol=1e-10)
+
+
+
+rel_err = np.linalg.norm(u_num[:, -1] - u_exact_final) / np.linalg.norm(u_exact_final)
 print(f"Relative L2 error at t = {t_end:.2f}  →  {rel_err:.3e}")
 
+rel_err_pod = np.linalg.norm(u_num[:, -1] - sol_recon[:, -1]) / np.linalg.norm(u_num[:, -1])
+print(f"POD Relative L2 error at t = {t_end:.2f}  →  {rel_err_pod:.3e}")
 
+rel_err_pod_small = np.linalg.norm(u_num[:, -1] - sol_recon_small[:, -1]) / np.linalg.norm(u_num[:, -1])
+print(f"POD Relative L2 error at t = {t_end:.2f}  →  {rel_err_pod_small:.3e}")
+
+#%%
+# Plot comparison
+plt.figure()
+plt.plot(x,u0, "--", label = "initial condition")
+plt.plot(x, u_exact_final, '--', label="Exact solution")
+plt.plot(x, u_num[:, -1], label=f"solve_ivp (RK45), {rel_err:.2e}")
+plt.plot(x, sol_recon[:, -1], label=f"POD solution ({rank}), {rel_err_pod:.2e}")
+plt.plot(x, sol_recon_small[:, -1], label=f"POD solution ({small_rank}), {rel_err_pod_small:.2e}")
+
+plt.xlabel("x"); plt.ylabel("u")
+plt.title(f"Adection equation with a new initial condition")
+plt.legend(); plt.tight_layout()
+# %%
