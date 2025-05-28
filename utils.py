@@ -7,7 +7,7 @@ import scipy.integrate as itg
 # ------------------------------------------------------------------
 # 1.  Compute a POD basis from a snapshot matrix
 # ------------------------------------------------------------------
-def compute_pod_basis(Y, rank=None, energy_thresh=None):
+def compute_pod_basis(Y, rank=None, energy_thresh=None, return_energy = False):
     """
     Parameters
     ----------
@@ -37,6 +37,8 @@ def compute_pod_basis(Y, rank=None, energy_thresh=None):
             cum_energy = np.cumsum(s**2) / np.sum(s**2)
             rank = np.searchsorted(cum_energy, energy_thresh) + 1
     V = U[:, :rank].copy()
+    if return_energy:
+        return V, s[:rank], s
     return V, s[:rank]
 
 

@@ -88,6 +88,7 @@ V, s = compute_pod_basis(u_ivp, rank= rank)
 u0_ivp_recon = V@V.T@u0_ivp
 
 plt.figure()
+
 plt.plot(x, u0_ivp, label = "Initial condition")
 plt.plot(x, u0_ivp_recon, label = "Recontructred initial condition")
 plt.legend()
@@ -95,22 +96,79 @@ plt.show()
 
 #%%
 A = alpha * L.toarray()
+
 sol_pod, sol_recon = solve_pod_system(A, V, u0_ivp, t_span = (0.0, t_end),t_eval=t_eval,
                      method="RK45", rtol=1e-8, atol=1e-10)
 
+small_rank = 3
+sol_pod_small, sol_recon_small = solve_pod_system(A, V[:,:small_rank], u0_ivp, t_span = (0.0, t_end),t_eval=t_eval,
+                     method="RK45", rtol=1e-8, atol=1e-10)
 
-rel_err = np.linalg.norm(sol_recon[:, -1] - u_ivp[:, -1]) / np.linalg.norm( u_ivp[:, -1])
-print(f"Relative L2 error at t = {t_end:.2f}  →  {rel_err:.3e}")
+rel_err_pod = np.linalg.norm(u_ivp[:, -1] - sol_recon[:, -1]) / np.linalg.norm(u_ivp[:, -1])
+print(f"POD Relative L2 error at t = {t_end:.2f}  →  {rel_err_pod:.3e}")
+
+rel_err_pod_small = np.linalg.norm(u_ivp[:, -1] - sol_recon_small[:, -1]) / np.linalg.norm(u_ivp[:, -1])
+print(f"Small POD Relative L2 error at t = {t_end:.2f}  →  {rel_err_pod_small:.3e}")
+# sol_pod, sol_recon = solve_pod_system(A, V, u0_ivp, t_span = (0.0, t_end),t_eval=t_eval,
+#                      method="RK45", rtol=1e-8, atol=1e-10)
+
+
+# rel_err = np.linalg.norm(sol_recon[:, -1] - u_ivp[:, -1]) / np.linalg.norm( u_ivp[:, -1])
+# print(f"Relative L2 error at t = {t_end:.2f}  →  {rel_err:.3e}")
+
+
 #%%
 # Plot comparison
 plt.figure()
 plt.plot(x,u0_ivp, "--", label = "initial condition")
 plt.plot(x, u_ivp_final, label="solve_ivp (RK45)")
-plt.plot(x, sol_recon[:, -1], label=f"POD solution, rank {rank}")
+plt.plot(x, sol_recon[:, -1], label=f"POD solution, rank {rank}, {rel_err_pod:.2e}")
+plt.plot(x, sol_recon_small[:, -1], label=f"POD solution rank {small_rank}, {rel_err_pod_small:.2e}")
 plt.xlabel("x"); plt.ylabel("u")
 plt.title("Heat equation")
 plt.legend(); plt.tight_layout()
 #plt.show()
+
+#%% Initial condition = solution at time 1.0
+
+u0_ivp = u_ivp_final#-5*np.sin(np.pi*x) - 0.5*np.sin(2*np.pi*x) + 0.5*np.sin(4*np.pi*x) + 0.2*np.sin(8*np.pi*x) -1*np.sin(16*np.pi*x)
+# Integrate with an explicit adaptive Runge–Kutta method
+sol_ivp = scipy.integrate.solve_ivp(rhs,
+                              (0.0, t_end),
+                              u0_ivp,
+                              t_eval=t_eval,
+                              method="RK45",
+                              rtol=1e-6,
+                              atol=1e-9)
+
+u_ivp = sol_ivp.y
+u_ivp_final = u_ivp[:, -1]
+
+# %%
+
+sol_pod, sol_recon = solve_pod_system(A, V, u0_ivp, t_span = (0.0, t_end),t_eval=t_eval,
+                     method="RK45", rtol=1e-8, atol=1e-10)
+
+small_rank = 3
+sol_pod_small, sol_recon_small = solve_pod_system(A, V[:,:small_rank], u0_ivp, t_span = (0.0, t_end),t_eval=t_eval,
+                     method="RK45", rtol=1e-8, atol=1e-10)
+
+rel_err_pod = np.linalg.norm(u_ivp[:, -1] - sol_recon[:, -1]) / np.linalg.norm(u_ivp[:, -1])
+print(f"POD Relative L2 error at t = {t_end:.2f}  →  {rel_err_pod:.3e}")
+
+rel_err_pod_small = np.linalg.norm(u_ivp[:, -1] - sol_recon_small[:, -1]) / np.linalg.norm(u_ivp[:, -1])
+print(f"Small POD Relative L2 error at t = {t_end:.2f}  →  {rel_err_pod_small:.3e}")
+# %%
+# Plot comparison
+plt.figure()
+plt.plot(x,u0_ivp, "--", label = "initial condition")
+plt.plot(x, u_ivp_final, label=f"solve_ivp (RK45)")
+plt.plot(x, sol_recon[:, -1], label=f"POD solution rank {rank}, {rel_err_pod:.2e}")
+plt.plot(x, sol_recon_small[:, -1], label=f"POD solution rank {small_rank}, {rel_err_pod_small:.2e}")
+
+plt.xlabel("x"); plt.ylabel("u")
+plt.title(f"Heat equation at time {t_end + 1.0}")
+plt.legend(); plt.tight_layout()
 #%% New initial condition
 
 u0_ivp = -5*np.sin(np.pi*x) - 0.5*np.sin(2*np.pi*x) + 0.5*np.sin(4*np.pi*x) + 0.2*np.sin(8*np.pi*x) -1*np.sin(16*np.pi*x)
@@ -151,7 +209,7 @@ plt.figure()
 plt.plot(x,u0_ivp, "--", label = "initial condition")
 plt.plot(x, u_ivp_final, label=f"solve_ivp (RK45)")
 plt.plot(x, sol_recon[:, -1], label=f"POD solution ({rank}), {rel_err_pod:.2e}")
-plt.plot(x, sol_recon_small[:, -1], label=f"POD solution ({small_rank}), {rel_err_pod_small:.2e}")
+plt.plot(x, sol_recon_small[:, -1], label=f"POD solution {small_rank}, {rel_err_pod_small:.2e}")
 
 plt.xlabel("x"); plt.ylabel("u")
 plt.title(f"Heat equation with a new initial condition")

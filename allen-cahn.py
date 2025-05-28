@@ -22,7 +22,7 @@ import matplotlib.pyplot as plt
 #%%
 # ───────────────────────── Parameters ───────────────────────
 eps2          = 1e-3   # ε²  (interface width parameter)
-nx            = 200     # grid points (periodic, incl. x=0)
+nx            = 128     # grid points (periodic, incl. x=0)
 dx            = 1.0 / nx
 t_end         = 1.0     # final time
 n_steps       = 200     # number of output times
@@ -91,10 +91,39 @@ from utils_deim import compute_deim_basis
 
 # Get the V matrix via SVD
 rank = 5
-V, s = compute_pod_basis(u_sol, rank= rank)
+V, s, energy = compute_pod_basis(u_sol, rank= rank, return_energy=True)
 Nsnapshots = f_non_linear(u_sol)
-m =5
+m =16
 U_deim, p = compute_deim_basis(Nsnapshots, m)
+
+#%%
+plt.figure()
+for i in range(4):
+    plt.plot(x, V[:, i], label=f"mode {i+1}")
+plt.legend(loc="lower right")          # bottom-right corner
+plt.title("The first 4 modes for the Allen-Cahn equation")
+plt.tight_layout()
+plt.show()
+
+
+plt.figure()
+plt.plot(1-np.cumsum(energy**2)/np.sum(energy**2))
+plt.yscale("log")
+plt.xticks(np.arange(energy.shape[0], step =5))
+plt.ylabel("Remaining energy")
+plt.xlabel("Number of modes")
+plt.title("Energy decay for the Allen-Cahn equation")
+plt.show()
+
+plt.figure(figsize=(6,4))
+plt.plot(x, u0,   "--"   ,          label="Initial condition")
+plt.plot(x, u_sol[:, -1], label=f"RK45")
+plt.scatter(x[p],u_sol[p, -1], label = "Selected interpolation points")
+plt.xlabel("x"); plt.ylabel("u")
+plt.title(f"1-D Allen–Cahn t = {t_end}")
+plt.legend(); plt.tight_layout()
+plt.show()
+
 
 #%% Solve the POD system
 
@@ -102,17 +131,32 @@ from utils_deim import solve_pod_deim_system
 sol_pod = solve_pod_deim_system(A, V, U_deim, p, f_non_linear, u0,
                           t_span, t_eval=t_eval,
                           method="RK45", rtol=1e-8, atol=1e-10)
-
 u_sol_pod = V@sol_pod.y
 
+
+#%%
+rank_small = rank
+m_small = 4
+
+sol_pod_small = solve_pod_deim_system(A, V[:, :rank_small], U_deim[:, :m_small], p[:m_small], f_non_linear, u0,
+                          t_span, t_eval=t_eval,
+                          method="RK45", rtol=1e-8, atol=1e-10)
+u_sol_pod_small = V[:, :rank_small]@sol_pod_small.y
+
+#%%
+
 rel_err = np.linalg.norm(u_sol_pod[:, -1] - u_sol[:, -1]) / np.linalg.norm( u_sol[:, -1])
+rel_err_small = np.linalg.norm(u_sol_pod_small[:, -1] - u_sol[:, -1]) / np.linalg.norm( u_sol[:, -1])
 print(f"Relative L2 error at t = {t_end:.2f}  →  {rel_err:.3e}")
+print(f"Relative L2 error at t = {t_end:.2f}  →  {rel_err_small:.3e}")
 
 # %%
 plt.figure(figsize=(6,4))
 plt.plot(x, u0,   "--"   ,          label="Initial condition")
 plt.plot(x, u_sol[:, -1], label=f"RK45")
 plt.plot(x, u_sol_pod[:, -1], label=f"POD {rank}, {m}, Error {rel_err:.3e}")
+plt.plot(x, u_sol_pod_small[:, -1], label=f"POD {rank_small}, {m_small}, Error {rel_err_small:.3e}")
+
 plt.xlabel("x"); plt.ylabel("u")
 plt.title(f"1-D Allen–Cahn t = {t_end}")
 plt.legend(); plt.tight_layout()
@@ -134,8 +178,22 @@ sol_pod = solve_pod_deim_system(A, V, U_deim, p, f_non_linear, u0,
 
 u_sol_pod = V@sol_pod.y
 
+#%%
+rank_small = rank
+m_small = 4
+
+sol_pod_small = solve_pod_deim_system(A, V[:, :rank_small], U_deim[:, :m_small], p[:m_small], f_non_linear, u0,
+                          t_span, t_eval=t_eval,
+                          method="RK45", rtol=1e-8, atol=1e-10)
+u_sol_pod_small = V[:, :rank_small]@sol_pod_small.y
+
+#%%
+
 rel_err = np.linalg.norm(u_sol_pod[:, -1] - u_sol[:, -1]) / np.linalg.norm( u_sol[:, -1])
-print(f"Relative L2 error at t = {t_end:.2f}  →  {rel_err:.2e}")
+rel_err_small = np.linalg.norm(u_sol_pod_small[:, -1] - u_sol[:, -1]) / np.linalg.norm( u_sol[:, -1])
+print(f"Relative L2 error at t = {t_end:.2f}  →  {rel_err:.3e}")
+print(f"Relative L2 error at t = {t_end:.2f}  →  {rel_err_small:.3e}")
+
 
 # %%
 
@@ -143,6 +201,7 @@ plt.figure(figsize=(6,4))
 plt.plot(x, u0,   "--"   ,          label="Initial condition")
 plt.plot(x, u_sol[:, -1], label=f"RK45")
 plt.plot(x, u_sol_pod[:, -1], label=f"POD {rank}, {m}, Error {rel_err:.3e}")
+plt.plot(x, u_sol_pod_small[:, -1], label=f"POD {rank_small}, {m_small}, Error {rel_err_small:.3e}")
 plt.xlabel("x"); plt.ylabel("u")
 plt.title(f"1-D Allen–Cahn t = {t_end + 1.0}")
 plt.legend(); plt.tight_layout()
@@ -167,8 +226,23 @@ sol_pod = solve_pod_deim_system(A, V, U_deim, p, f_non_linear, u0,
 
 u_sol_pod = V@sol_pod.y
 
+#%%
+
+rank_small = rank
+m_small = 4
+
+sol_pod_small = solve_pod_deim_system(A, V[:, :rank_small], U_deim[:, :m_small], p[:m_small], f_non_linear, u0,
+                          t_span, t_eval=t_eval,
+                          method="RK45", rtol=1e-8, atol=1e-10)
+u_sol_pod_small = V[:, :rank_small]@sol_pod_small.y
+
+#%%
+
 rel_err = np.linalg.norm(u_sol_pod[:, -1] - u_sol[:, -1]) / np.linalg.norm( u_sol[:, -1])
+rel_err_small = np.linalg.norm(u_sol_pod_small[:, -1] - u_sol[:, -1]) / np.linalg.norm( u_sol[:, -1])
 print(f"Relative L2 error at t = {t_end:.2f}  →  {rel_err:.3e}")
+print(f"Relative L2 error at t = {t_end:.2f}  →  {rel_err_small:.3e}")
+
 
 # %%
 
@@ -176,6 +250,7 @@ plt.figure(figsize=(6,4))
 plt.plot(x, u0,   "--"   ,          label="Initial condition")
 plt.plot(x, u_sol[:, -1], label=f"RK45")
 plt.plot(x, u_sol_pod[:, -1], label=f"POD {rank}, {m}, Error {rel_err:.2e}")
+plt.plot(x, u_sol_pod_small[:, -1], label=f"POD {rank_small}, {m_small}, Error {rel_err_small:.3e}")
 plt.xlabel("x"); plt.ylabel("u")
 plt.title(f"1-D Allen–Cahn t = {t_end}")
 plt.legend(); plt.tight_layout()
